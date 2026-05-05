@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Pong Migliorato</title>
+  <title>Pong</title>
   <style>
     body {
       margin: 0;
@@ -11,8 +11,8 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      font-family: Arial, sans-serif;
       color: white;
+      font-family: Arial;
     }
 
     canvas {
@@ -23,7 +23,7 @@
     #score {
       position: absolute;
       top: 20px;
-      font-size: 24px;
+      font-size: 30px;
     }
   </style>
 </head>
@@ -37,20 +37,19 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.getElementById("score");
 
-// Paddle settings
+// Paddle
 const paddleWidth = 10;
 const paddleHeight = 100;
 const paddleSpeed = 6;
 
 // Player (sinistra)
-let leftPaddle = {
+let player = {
   x: 10,
-  y: canvas.height / 2 - paddleHeight / 2,
-  dy: 0
+  y: canvas.height / 2 - paddleHeight / 2
 };
 
-// IA (destra)
-let rightPaddle = {
+// AI (destra)
+let ai = {
   x: canvas.width - 20,
   y: canvas.height / 2 - paddleHeight / 2
 };
@@ -59,135 +58,138 @@ let rightPaddle = {
 let ball = {
   x: canvas.width / 2,
   y: canvas.height / 2,
-  radius: 8,
-  speed: 5,
+  r: 8,
   dx: 5,
   dy: 3
 };
 
 // Score
-let leftScore = 0;
-let rightScore = 0;
+let playerScore = 0;
+let aiScore = 0;
 
-// Controls
+// Input
+let up = false;
+let down = false;
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "w") leftPaddle.dy = -paddleSpeed;
-  if (e.key === "s") leftPaddle.dy = paddleSpeed;
+  if (e.key === "w") up = true;
+  if (e.key === "s") down = true;
 });
 
-document.addEventListener("keyup", () => {
-  leftPaddle.dy = 0;
+document.addEventListener("keyup", (e) => {
+  if (e.key === "w") up = false;
+  if (e.key === "s") down = false;
 });
 
-// Draw
-function drawRect(x, y, w, h) {
+// Disegno
+function rect(x, y, w, h) {
   ctx.fillStyle = "white";
   ctx.fillRect(x, y, w, h);
 }
 
-function drawBall(x, y, r) {
+function circle(x, y, r) {
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fillStyle = "white";
   ctx.fill();
 }
 
-function drawNet() {
+function net() {
   for (let i = 0; i < canvas.height; i += 20) {
-    drawRect(canvas.width / 2 - 1, i, 2, 10);
+    rect(canvas.width / 2 - 1, i, 2, 10);
   }
 }
 
-// Collision migliorata
-function collision(b, p) {
+// Collisione
+function hit(b, p) {
   return (
-    b.x - b.radius < p.x + paddleWidth &&
-    b.x + b.radius > p.x &&
-    b.y - b.radius < p.y + paddleHeight &&
-    b.y + b.radius > p.y
+    b.x - b.r < p.x + paddleWidth &&
+    b.x + b.r > p.x &&
+    b.y - b.r < p.y + paddleHeight &&
+    b.y + b.r > p.y
   );
 }
 
 // Update
 function update() {
+
   // Movimento player
-  leftPaddle.y += leftPaddle.dy;
+  if (up) player.y -= paddleSpeed;
+  if (down) player.y += paddleSpeed;
 
-  // Limiti schermo
-  leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
+  // Limiti
+  player.y = Math.max(0, Math.min(canvas.height - paddleHeight, player.y));
 
-  // IA semplice (segue la palla)
-  rightPaddle.y += (ball.y - (rightPaddle.y + paddleHeight / 2)) * 0.1;
+  // IA semplice
+  ai.y += (ball.y - (ai.y + paddleHeight / 2)) * 0.08;
 
-  // Ball
+  // Movimento palla
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  // Collisione con muri
-  if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
+  // Muri
+  if (ball.y < 0 || ball.y > canvas.height) {
     ball.dy *= -1;
   }
 
-  // Collisione paddles
-  if (collision(ball, leftPaddle)) {
-    ball.dx = Math.abs(ball.dx) + 0.3;
+  // Collisioni
+  if (hit(ball, player)) {
+    ball.dx = Math.abs(ball.dx);
 
-    let collidePoint = ball.y - (leftPaddle.y + paddleHeight / 2);
-    collidePoint /= (paddleHeight / 2);
-
-    ball.dy = collidePoint * 5;
+    let collide = ball.y - (player.y + paddleHeight / 2);
+    ball.dy = collide * 0.1;
   }
 
-  if (collision(ball, rightPaddle)) {
-    ball.dx = -Math.abs(ball.dx) - 0.3;
+  if (hit(ball, ai)) {
+    ball.dx = -Math.abs(ball.dx);
 
-    let collidePoint = ball.y - (rightPaddle.y + paddleHeight / 2);
-    collidePoint /= (paddleHeight / 2);
-
-    ball.dy = collidePoint * 5;
+    let collide = ball.y - (ai.y + paddleHeight / 2);
+    ball.dy = collide * 0.1;
   }
 
-  // Score
+  // Punto
   if (ball.x < 0) {
-    rightScore++;
-    resetBall();
+    aiScore++;
+    reset();
   }
 
   if (ball.x > canvas.width) {
-    leftScore++;
-    resetBall();
+    playerScore++;
+    reset();
   }
 
-  scoreEl.textContent = `${leftScore} : ${rightScore}`;
+  scoreEl.textContent = playerScore + " : " + aiScore;
 }
 
 // Reset
-function resetBall() {
+function reset() {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  ball.dx = -ball.dx;
-  ball.dy = (Math.random() - 0.5) * 6;
+  ball.dx *= -1;
+  ball.dy = Math.random() * 4 - 2;
 }
 
 // Draw
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  drawNet();
-  drawRect(leftPaddle.x, leftPaddle.y, paddleWidth, paddleHeight);
-  drawRect(rightPaddle.x, rightPaddle.y, paddleWidth, paddleHeight);
-  drawBall(ball.x, ball.y, ball.radius);
+  net();
+  rect(player.x, player.y, paddleWidth, paddleHeight);
+  rect(ai.x, ai.y, paddleWidth, paddleHeight);
+  circle(ball.x, ball.y, ball.r);
 }
 
 // Loop
-function gameLoop() {
+function loop() {
   update();
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-gameLoop();
+loop();
 </script>
 
+</body>
+</html>
 </body>
 </html>
