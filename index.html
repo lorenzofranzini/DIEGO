@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Pong Game</title>
+  <title>Pong Migliorato</title>
   <style>
     body {
       margin: 0;
@@ -35,23 +35,24 @@
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
 const scoreEl = document.getElementById("score");
 
-// Paddles
+// Paddle settings
 const paddleWidth = 10;
 const paddleHeight = 100;
+const paddleSpeed = 6;
 
+// Player (sinistra)
 let leftPaddle = {
   x: 10,
   y: canvas.height / 2 - paddleHeight / 2,
   dy: 0
 };
 
+// IA (destra)
 let rightPaddle = {
   x: canvas.width - 20,
-  y: canvas.height / 2 - paddleHeight / 2,
-  dy: 0
+  y: canvas.height / 2 - paddleHeight / 2
 };
 
 // Ball
@@ -61,7 +62,7 @@ let ball = {
   radius: 8,
   speed: 5,
   dx: 5,
-  dy: 5
+  dy: 3
 };
 
 // Score
@@ -70,28 +71,24 @@ let rightScore = 0;
 
 // Controls
 document.addEventListener("keydown", (e) => {
-  if (e.key === "w") leftPaddle.dy = -6;
-  if (e.key === "s") leftPaddle.dy = 6;
-
-  if (e.key === "ArrowUp") rightPaddle.dy = -6;
-  if (e.key === "ArrowDown") rightPaddle.dy = 6;
+  if (e.key === "w") leftPaddle.dy = -paddleSpeed;
+  if (e.key === "s") leftPaddle.dy = paddleSpeed;
 });
 
 document.addEventListener("keyup", () => {
   leftPaddle.dy = 0;
-  rightPaddle.dy = 0;
 });
 
-// Draw functions
+// Draw
 function drawRect(x, y, w, h) {
   ctx.fillStyle = "white";
   ctx.fillRect(x, y, w, h);
 }
 
 function drawBall(x, y, r) {
-  ctx.fillStyle = "white";
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = "white";
   ctx.fill();
 }
 
@@ -101,35 +98,53 @@ function drawNet() {
   }
 }
 
+// Collision migliorata
+function collision(b, p) {
+  return (
+    b.x - b.radius < p.x + paddleWidth &&
+    b.x + b.radius > p.x &&
+    b.y - b.radius < p.y + paddleHeight &&
+    b.y + b.radius > p.y
+  );
+}
+
 // Update
 function update() {
+  // Movimento player
   leftPaddle.y += leftPaddle.dy;
-  rightPaddle.y += rightPaddle.dy;
 
-  // Ball movement
+  // Limiti schermo
+  leftPaddle.y = Math.max(0, Math.min(canvas.height - paddleHeight, leftPaddle.y));
+
+  // IA semplice (segue la palla)
+  rightPaddle.y += (ball.y - (rightPaddle.y + paddleHeight / 2)) * 0.1;
+
+  // Ball
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  // Wall collision
-  if (ball.y < 0 || ball.y > canvas.height) {
+  // Collisione con muri
+  if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
     ball.dy *= -1;
   }
 
-  // Paddle collision
-  if (
-    ball.x < leftPaddle.x + paddleWidth &&
-    ball.y > leftPaddle.y &&
-    ball.y < leftPaddle.y + paddleHeight
-  ) {
-    ball.dx *= -1;
+  // Collisione paddles
+  if (collision(ball, leftPaddle)) {
+    ball.dx = Math.abs(ball.dx) + 0.3;
+
+    let collidePoint = ball.y - (leftPaddle.y + paddleHeight / 2);
+    collidePoint /= (paddleHeight / 2);
+
+    ball.dy = collidePoint * 5;
   }
 
-  if (
-    ball.x > rightPaddle.x &&
-    ball.y > rightPaddle.y &&
-    ball.y < rightPaddle.y + paddleHeight
-  ) {
-    ball.dx *= -1;
+  if (collision(ball, rightPaddle)) {
+    ball.dx = -Math.abs(ball.dx) - 0.3;
+
+    let collidePoint = ball.y - (rightPaddle.y + paddleHeight / 2);
+    collidePoint /= (paddleHeight / 2);
+
+    ball.dy = collidePoint * 5;
   }
 
   // Score
@@ -146,12 +161,12 @@ function update() {
   scoreEl.textContent = `${leftScore} : ${rightScore}`;
 }
 
-// Reset ball
+// Reset
 function resetBall() {
   ball.x = canvas.width / 2;
   ball.y = canvas.height / 2;
-  ball.dx *= -1;
-  ball.dy = (Math.random() - 0.5) * 10;
+  ball.dx = -ball.dx;
+  ball.dy = (Math.random() - 0.5) * 6;
 }
 
 // Draw
@@ -164,7 +179,7 @@ function draw() {
   drawBall(ball.x, ball.y, ball.radius);
 }
 
-// Game loop
+// Loop
 function gameLoop() {
   update();
   draw();
